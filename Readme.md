@@ -16,7 +16,9 @@
 > - Arrow keys use 1M and 0.5M steps to change frequency
 > - Added color to shortcut keys
 > - Added a Help screen
+> ...
 > XQTR 2024 :: https://cp737.net
+
 
 
 
