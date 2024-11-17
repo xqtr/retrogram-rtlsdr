@@ -9,13 +9,14 @@
 	                         __/ |                                                   
 	                        |___/                                                    
 
-> [!TIP]
+> [!NOTE]
 > Made changes to the original code, to make it fit on a 4" screen that the [HackBerry Pi](https://github.com/ZitaoTech/Hackberry-Pi_Zero) uses.
 > Other changes:
 > - Type a frequency
 > - Arrow keys use 1M and 0.5M steps to change frequency
 > - Added color to shortcut keys
 > - Added a Help screen
+> XQTR 2024 :: https://cp737.net
 
 
 
