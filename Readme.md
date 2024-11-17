@@ -9,6 +9,15 @@
 	                         __/ |                                                   
 	                        |___/                                                    
 
+> [!TIP]
+> Made changes to the original code, to make it fit on a 4" screen that the [HackBerry Pi](https://github.com/ZitaoTech/Hackberry-Pi_Zero) uses.
+> Other changes:
+> - Type a frequency
+> - Arrow keys use 1M and 0.5M steps to change frequency
+> - Added color to shortcut keys
+> - Added a Help screen
+
+
 
 Wideband Spectrum analyzer on your terminal/ssh console with ASCII art. 
 Hacked from Ettus UHD RX ASCII Art DFT code for RTLSDR. Adapted from [retrogram~plutosdr](https://github.com/r4d10n/retrogram-plutosdr). 
