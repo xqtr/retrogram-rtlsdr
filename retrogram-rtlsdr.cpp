@@ -22,6 +22,17 @@ Hacked from Ettus UHD RX ASCII Art DFT code - adapted for RTL SDR dongle.
 //
 
 
+/*
+   Changes made by XQTR // https://github.com/xqtr
+
+ - Reduced width of displayed text, using colors
+ - Made some controls to be used as a single character, no need to use shifted char.
+ - Added Help screen
+ - Added functionality to type a frequency, also accepts M and K abbreviations
+ - Cursor Keys Increase/Decrease frequency by 1M or 0.5M
+ 
+ */
+
 #include "ascii_art_dft.hpp" //implementation
 #include <boost/program_options.hpp>
 #include <boost/format.hpp>
@@ -36,6 +47,8 @@ Hacked from Ettus UHD RX ASCII Art DFT code - adapted for RTL SDR dongle.
 
 #define EXIT_ON_ERR false
 #define DISABLE_STDERR true
+
+#define usedlines 4
 
 namespace po = boost::program_options;
 using std::chrono::high_resolution_clock;
@@ -218,6 +231,69 @@ int verbose_device_search(const char *s)
     return -1;
 }
 
+double strict_strtod(char *str)
+{
+    char* endptr;
+    double value = strtod(str, &endptr);
+    if (*endptr) return 0;
+    return value;
+}
+
+void help(){
+  clear();
+  timeout(-1);
+  echo();
+  
+  printw("fF: Decrease/Increase Frequency by Step\n");
+  printw("rR: Decrease/Increase Rate\n");
+  printw("pP: Decrease/Increase PPM\n");
+  printw("gG: Decrease/Increase Gain\n");
+  printw("dD: Decrease/Increase Dyn. Range\n");
+  printw("lL: Decrease/Increase Ref. Level\n");
+  printw("sS: Decrease/Increase FPS\n");
+  printw("tT: Decrease/Increase Step\n");
+  printw("kK: Toggle Peak Hold\n");
+  printw("cC: Toggle Showing Controls\n");
+  printw("\n");
+  printw("Cursor Up   : Increase Frequency by 1Mhz\n");
+  printw("Cursor Down : Decrease Frequency by 1Mhz\n");
+  printw("Cursor Right: Increase Frequency by 0.5Mhz\n");
+  printw("Cursor Left : Decrease Frequency by 0.5Mhz\n");
+  printw("x : Input frequency. Example: 144800000 or 144.8M or 144800K\n");
+  printw("\n");
+  printw("Press any key to continue...\n");
+  
+  
+  getch();
+  noecho();
+  timeout(0);
+} 
+
+int ends_with(const char *str, const char *suffix) {
+  size_t str_len = strlen(str);
+  size_t suffix_len = strlen(suffix);
+
+  return (str_len >= suffix_len) &&
+         (!memcmp(str + str_len - suffix_len, suffix, suffix_len));
+}
+
+char *getstring(char *title)
+{
+    //char mesg[]="Enter a string: ";  /* message to be appeared on the screen */
+    char *input = (char*)malloc(10);;
+    timeout(-1);
+    echo();
+    attron(COLOR_PAIR(1));
+    mvprintw(2,1,"%s",title);
+    attroff(COLOR_PAIR(1));
+    getstr(input);
+    //mvprintw(LINES - 2, 0, "You Entered: %s", str);
+    //getch();
+    timeout(0);
+    noecho();
+    return input;
+}
+
 
 int main(int argc, char *argv[]){
 
@@ -230,7 +306,7 @@ int main(int argc, char *argv[]){
 
     int num_bins = 512;
     double rate, freq, step, gain, ngain, frame_rate;
-	int ppm;	// frequency correction in parts per million
+    int ppm;  // frequency correction in parts per million
     float ref_lvl, dyn_rng;
     bool show_controls;
     bool peak_hold;
@@ -323,6 +399,28 @@ int main(int argc, char *argv[]){
     //-- Initialize
     //------------------------------------------------------------------
     initscr();
+    
+     if (has_colors() == FALSE) {
+      printf("Your terminal does not support color\n");
+      rtlsdr_close(dev);
+      free (buffer);
+      curs_set(true);
+
+      endwin(); //curses done
+
+      //finished
+      std::cout << std::endl << (char)(ch) << std::endl << "Done!" << std::endl << std::endl;
+
+      return EXIT_SUCCESS;
+    }
+    
+    // Enable ANSI color codes
+    start_color();
+    clear();
+    noecho();
+    init_color(COLOR_YELLOW, 1000,1000,0);
+    init_pair(1, COLOR_YELLOW, COLOR_BLACK);
+    init_pair(2, COLOR_WHITE, COLOR_BLACK);
 
     auto next_refresh = high_resolution_clock::now();
 
@@ -390,26 +488,58 @@ int main(int argc, char *argv[]){
             + std::chrono::microseconds(int64_t(1e6/frame_rate));
 
         std::string frame = ascii_art_dft::dft_to_plot(
-            lpdft, COLS, (show_controls ? LINES-5 : LINES),
+            lpdft, COLS, (show_controls ? LINES-usedlines : LINES),
             rate,
             freq,
             dyn_rng, ref_lvl
         );
 
         std::string header = std::string((COLS-26)/2, '-');
-    	std::string border = std::string((COLS), '-');
+      std::string border = std::string((COLS-9), '-');
 
         //curses screen handling: clear and print frame
         clear();
         if (show_controls)
         {
-            printw("-%s-={ retrogram~rtlsdr }=-%s--",header.c_str(),header.c_str());
-            printw("[f-F]req: %4.3f MHz   |   [r-R]ate: %2.2f Msps    |   [p-P]pm: %4d  |   ", freq/1e6, rate/1e6, ppm);
-            if (gain == 0) printw("[g-G]ain: (Auto)");
-            else printw("[g-G]ain: %2.0f dB", gain/10);
-            printw("    |    Peak [h-H]hold: %s\n", peak_hold ? "On" : "Off");
-            printw("[d-D]yn Range: %2.0f dB    |   Ref [l-L]evel: %2.0f dB   |   fp[s-S]: %4.0f  |   [t-T]uning step: %3.3f M\n", dyn_rng, ref_lvl, frame_rate, step/1e6);
-    	    printw("%s", border.c_str());
+            attron(COLOR_PAIR(1));printw("F");
+            attron(COLOR_PAIR(2));printw("req: %4.3f MHz | ", freq/1e6);
+            
+            attron(COLOR_PAIR(1));printw("R");
+            attron(COLOR_PAIR(2));printw("ate: %2.2f Msps | ", rate/1e6);
+            
+            attron(COLOR_PAIR(1));printw("P");
+            attron(COLOR_PAIR(2));printw("pm: %4d | ",ppm);
+            
+            //printw("req: %4.3f MHz | Rate: %2.2f Msps | Ppm: %4d | ", freq/1e6, rate/1e6, ppm);
+            
+            
+            if (gain == 0) {
+              attron(COLOR_PAIR(1));printw("G");
+              attron(COLOR_PAIR(2));printw("ain: (Auto)\n");
+            }
+            else {
+              attron(COLOR_PAIR(1));printw("G");
+              attron(COLOR_PAIR(2));printw("ain: %2.0f dB\n", gain/10);
+            }
+            
+            attron(COLOR_PAIR(1));printw("D");
+            attron(COLOR_PAIR(2));printw("yn: %2.0f dB | ", dyn_rng);
+            
+            attron(COLOR_PAIR(1));printw("L");
+            attron(COLOR_PAIR(2));printw("vl: %2.0f dB | fp", ref_lvl);
+            
+            attron(COLOR_PAIR(1));printw("s");
+            attron(COLOR_PAIR(2));printw(": %2.0f | S", frame_rate);
+            
+            attron(COLOR_PAIR(1));printw("t");
+            attron(COLOR_PAIR(2));printw("ep: %3.3f M | ", step/1e6);
+            
+            printw("Pea");
+            attron(COLOR_PAIR(1));printw("k");
+            attron(COLOR_PAIR(2));printw(": %s\n", peak_hold ? "Hold" : "Off");
+            
+            attroff(COLOR_PAIR(2));
+            printw("%s H:Help\n", border.c_str());
         }
         printw("%s\n", frame.c_str());
 
@@ -495,8 +625,9 @@ int main(int argc, char *argv[]){
                 break;
             }
 
-            case 'h': { peak_hold = false; break; }
-            case 'H': { peak_hold = true; break; }
+            case 'h': { help(); break; }
+            case 'k': { peak_hold = !peak_hold; break; }
+            case 'K': { peak_hold = !peak_hold; break; }
             case 'l': { ref_lvl -= 10; break; }
             case 'L': { ref_lvl += 10; break; }
             case 'd': { dyn_rng -= 10; break; }
@@ -505,9 +636,31 @@ int main(int argc, char *argv[]){
             case 'S': { frame_rate += 1; break; }
             case 't': { if (step > 1) step /= 2; break; }
             case 'T': { step *= 2; break; }
-            case 'c': { show_controls = false; break; }
-            case 'C': { show_controls = true; break; }
-
+            case 'c': { show_controls = !show_controls; break; }
+            case 'C': { show_controls = !show_controls; break; }
+            case 'x': { 
+              char str[] = " Frequency (ex. 144800000): ";
+              char *ff = (char*)malloc(10);
+              ff = getstring(str);
+              if (ends_with(ff,"M") == 1) {
+                int size = strlen(ff); //Total size of string
+                ff[size-1] = '\0';
+                freq = strict_strtod(ff) * 1000000;
+              } 
+              else if (ends_with(ff,"K") == 1) {
+                int size = strlen(ff); 
+                ff[size-1] = '\0';
+                freq = strict_strtod(ff) * 1000;
+              }
+              else 
+              {
+                freq = strict_strtod(ff);
+              }
+              verbose_set_frequency(dev, freq);
+              break;
+            }
+            
+            
             case 'q':
             case 'Q': { loop = false; break; }
 
@@ -518,16 +671,24 @@ int main(int argc, char *argv[]){
             getch();
             switch(getch())
             {
-    	        case 'A':
-                case 'C':
-                    freq += step;
+              case 'A':
+                    freq += 1000000;
+                    verbose_set_frequency(dev, freq);
+
+                    break;
+              case 'C':
+                    freq += 500000;
                     verbose_set_frequency(dev, freq);
 
                     break;
 
-    	        case 'B':
-                case 'D':
-                    freq -= step;
+              case 'B':
+                    freq -= 1000000;
+                    verbose_set_frequency(dev, freq);
+
+                    break;
+              case 'D':
+                    freq -= 500000;
                     verbose_set_frequency(dev, freq);
 
                     break;
